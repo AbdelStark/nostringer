@@ -1,9 +1,6 @@
 import { ProjectivePoint } from "@noble/secp256k1";
-import { bytesToHex } from "@noble/hashes/utils";
-import {
-  generateSecretKey as nostrGenerateSecretKey,
-  getPublicKey as nostrGetPublicKey,
-} from "nostr-tools";
+import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
+import { generateSecretKey as nostrGenerateSecretKey } from "nostr-tools";
 
 /**
  * Interface for a key pair with private and public keys
@@ -26,6 +23,19 @@ export function generateDeterministicKeyPair(seed = 1): KeyPair {
 
   // Get the public key
   const pubKey = ProjectivePoint.fromPrivateKey(seedBytes);
+  const publicKeyHex = pubKey.x.toString(16).padStart(64, "0");
+
+  return { privateKeyHex, publicKeyHex };
+}
+
+/**
+ * Create a key pair from a private key hex string
+ * @param privateKeyHex - Private key as hex string
+ * @returns A KeyPair object with private and public keys
+ */
+export function keyPairFromPrivateKey(privateKeyHex: string): KeyPair {
+  const privateBytes = hexToBytes(privateKeyHex);
+  const pubKey = ProjectivePoint.fromPrivateKey(privateBytes);
   const publicKeyHex = pubKey.x.toString(16).padStart(64, "0");
 
   return { privateKeyHex, publicKeyHex };
@@ -59,7 +69,11 @@ export const NostrTools = {
   generateKeyPair(): KeyPair {
     const privKey = nostrGenerateSecretKey();
     const privateKeyHex = bytesToHex(privKey);
-    const publicKeyHex = nostrGetPublicKey(privKey);
+
+    // Get the public key using our library's method instead of nostr-tools
+    // This ensures the public key format is compatible with our ring signature implementation
+    const pubKey = ProjectivePoint.fromPrivateKey(privKey);
+    const publicKeyHex = pubKey.x.toString(16).padStart(64, "0");
 
     return { privateKeyHex, publicKeyHex };
   },
