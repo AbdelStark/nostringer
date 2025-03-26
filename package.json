@@ -1,6 +1,6 @@
 {
   "name": "nostringer",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Unlinkable ring signatures for Nostr-compatible secp256k1 keys",
   "main": "dist/index.js",
   "module": "dist/index.js",
