@@ -6,8 +6,8 @@ on:
       - "v*"
 
 jobs:
-  build:
-    name: Build and test
+  test:
+    name: Test and prepare release
     runs-on: ubuntu-latest
 
     steps:
@@ -27,19 +27,22 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Build package
-        run: npm run build
+      - name: Prepare package files
+        run: |
+          mkdir -p package
+          cp src/* package/
+          cp package.json README.md LICENSE* package/
 
-      - name: Upload build artifacts
+      - name: Upload package files
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts
-          path: dist/
+          name: package-files
+          path: package/
           retention-days: 5
 
   release:
     name: Create GitHub Release
-    needs: build
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
@@ -52,11 +55,11 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Download build artifacts
+      - name: Download package files
         uses: actions/download-artifact@v3
         with:
-          name: build-artifacts
-          path: dist
+          name: package-files
+          path: package
 
       - name: Generate changelog
         id: changelog
@@ -79,9 +82,9 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Zip distribution files
+      - name: Zip package files
         run: |
-          cd dist
+          cd package
           zip -r ../nostringer-${{ github.ref_name }}.zip .
 
       - name: Upload Release Asset
@@ -96,7 +99,7 @@ jobs:
 
   publish:
     name: Publish to npm
-    needs: [build, release]
+    needs: [test, release]
     runs-on: ubuntu-latest
 
     steps:
@@ -111,11 +114,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download build artifacts
+      - name: Download package files
         uses: actions/download-artifact@v3
         with:
-          name: build-artifacts
-          path: dist
+          name: package-files
+          path: ./
 
       - name: Publish to npm
         run: npm publish
