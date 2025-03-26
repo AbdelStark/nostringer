@@ -15,21 +15,44 @@ const N = CURVE.n; // Order of the curve
 const G = ProjectivePoint.BASE; // Base point
 
 /**
- * Normalize a hex string by removing 0x prefix and ensuring even length
+ * Normalize a hex string by removing 0x prefix, ensuring even length,
+ * and handling case consistency
  */
 function normalizeHex(hex: string): string {
   if (typeof hex !== "string") {
-    throw new Error("Invalid hex string");
+    throw new Error("Invalid hex string: not a string");
   }
+
+  // Remove 0x prefix if present
+  if (hex.startsWith("0x") || hex.startsWith("0X")) {
+    hex = hex.slice(2);
+  }
+
+  // Convert to lowercase for consistency
+  hex = hex.toLowerCase();
 
   // Check for non-hex characters
-  if (!/^[0-9a-fA-F]+$/.test(hex)) {
-    throw new Error("Invalid hex string");
+  if (!/^[0-9a-f]+$/.test(hex)) {
+    throw new Error(`Invalid hex string: contains non-hex characters: ${hex}`);
   }
 
-  hex = hex.toLowerCase();
-  if (hex.startsWith("0x")) hex = hex.slice(2);
-  return hex.length % 2 === 1 ? "0" + hex : hex;
+  // Ensure even length by padding with a leading zero if needed
+  if (hex.length % 2 === 1) {
+    hex = "0" + hex;
+  }
+
+  // Check for reasonable length for a key (32 bytes = 64 hex chars)
+  if (hex.length > 128) {
+    throw new Error(`Hex string too long: ${hex.length} chars`);
+  }
+
+  // Enforce 64 characters for public keys by padding with leading zeros
+  // This is important for consistent key format across the library
+  if (hex.length === 63) {
+    hex = "0" + hex;
+  }
+
+  return hex;
 }
 
 /**
@@ -41,18 +64,50 @@ function hexToBigInt(hex: string): bigint {
 
 /**
  * Convert a hex string public key to a secp256k1 Point
- * Supports x-only (64 hex chars) or compressed keys
+ * Supports x-only (64 hex chars) or compressed keys with careful validation
  */
 function hexToPoint(pubKeyHex: string): ProjectivePoint {
-  const hex = normalizeHex(pubKeyHex);
-
-  // If it's an x-only key (32 bytes / 64 hex chars), add 02 prefix for even y
-  const fullHex = hex.length === 64 ? "02" + hex : hex;
-
   try {
-    return ProjectivePoint.fromHex(fullHex);
-  } catch (err) {
-    throw new Error(`Invalid public key: ${pubKeyHex}`);
+    // Normalize and validate the format
+    const hex = normalizeHex(pubKeyHex);
+
+    // Handle different key formats
+    let fullHex: string;
+
+    if (hex.length === 64) {
+      // It's an x-only key (32 bytes / 64 hex chars), add 02 prefix for even y
+      fullHex = "02" + hex;
+    } else if (
+      hex.length === 66 &&
+      (hex.startsWith("02") || hex.startsWith("03"))
+    ) {
+      // Already in compressed format
+      fullHex = hex;
+    } else {
+      throw new Error(`Unsupported public key format: ${hex.length} hex chars`);
+    }
+
+    try {
+      const point = ProjectivePoint.fromHex(fullHex);
+
+      // Validate the point is on curve
+      if (!point.assertValidity()) {
+        throw new Error("Point is not on the curve");
+      }
+
+      return point;
+    } catch (err) {
+      throw new Error(
+        `Failed to create point from hex: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Invalid public key: ${error.message}`);
+    }
+    throw new Error(`Invalid public key: unknown error`);
   }
 }
 
@@ -75,7 +130,7 @@ function randomScalar(): bigint {
 function hashToScalar(
   message: string | Uint8Array,
   publicKeys: string[],
-  commitmentPoint: ProjectivePoint,
+  commitmentPoint: ProjectivePoint
 ): bigint {
   // Convert message to bytes
   let msgBytes: Uint8Array;
@@ -138,9 +193,37 @@ export function generatePrivateKey(): string {
  * @returns The x-only public key as a hex string
  */
 export function getPublicKey(privateKeyHex: string): string {
-  const privBytes = hexToBytes(normalizeHex(privateKeyHex));
-  const point = ProjectivePoint.fromPrivateKey(privBytes);
-  return point.x.toString(16).padStart(64, "0");
+  try {
+    const normalizedPrivKey = normalizeHex(privateKeyHex);
+    if (normalizedPrivKey.length !== 64) {
+      throw new Error(
+        `Invalid private key length: got ${normalizedPrivKey.length} hex chars, expected 64`
+      );
+    }
+
+    const privBytes = hexToBytes(normalizedPrivKey);
+    if (privBytes.length !== 32) {
+      throw new Error(
+        `Invalid private key byte length: got ${privBytes.length} bytes, expected 32`
+      );
+    }
+
+    const point = ProjectivePoint.fromPrivateKey(privBytes);
+    // Ensure consistent formatting with padStart for public key
+    const publicKeyHex = point.x.toString(16).padStart(64, "0");
+
+    // Validate result format
+    if (!/^[0-9a-f]{64}$/.test(publicKeyHex)) {
+      throw new Error(`Invalid public key format: ${publicKeyHex}`);
+    }
+
+    return publicKeyHex;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Error deriving public key: ${error.message}`);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -154,7 +237,7 @@ export function getPublicKey(privateKeyHex: string): string {
 export function sign(
   message: string | Uint8Array,
   privateKeyHex: string,
-  publicKeysHex: string[],
+  publicKeysHex: string[]
 ): RingSignature {
   try {
     // Validate private key
@@ -178,7 +261,7 @@ export function sign(
     const privateKeyScalar = hexToBigInt(privateKey);
     const signerPubKey = getPublicKey(privateKey);
     const signerIndex = publicKeys.findIndex(
-      (pk) => pk.toLowerCase() === signerPubKey.toLowerCase(),
+      (pk) => pk.toLowerCase() === signerPubKey.toLowerCase()
     );
 
     if (signerIndex === -1) {
@@ -243,7 +326,7 @@ export function sign(
 export function verify(
   signature: RingSignature,
   message: string | Uint8Array,
-  publicKeysHex: string[],
+  publicKeysHex: string[]
 ): boolean {
   try {
     // Basic validation
