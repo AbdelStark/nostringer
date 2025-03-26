@@ -100,7 +100,7 @@ function hexToPoint(pubKeyHex: string): ProjectivePoint {
       throw new Error(
         `Failed to create point from hex: ${
           err instanceof Error ? err.message : String(err)
-        }`,
+        }`
       );
     }
   } catch (error) {
@@ -130,45 +130,56 @@ function randomScalar(): bigint {
 function hashToScalar(
   message: string | Uint8Array,
   publicKeys: string[],
-  commitmentPoint: ProjectivePoint,
+  commitmentPoint: ProjectivePoint
 ): bigint {
-  // Convert message to bytes
-  let msgBytes: Uint8Array;
-  if (typeof message === "string") {
-    msgBytes = new TextEncoder().encode(message);
-  } else if (message instanceof Uint8Array) {
-    msgBytes = message;
-  } else {
-    throw new Error("Message must be a string or Uint8Array");
+  try {
+    // Convert message to bytes
+    let msgBytes: Uint8Array;
+    if (typeof message === "string") {
+      msgBytes = new TextEncoder().encode(message);
+    } else if (message instanceof Uint8Array) {
+      msgBytes = message;
+    } else {
+      throw new Error("Message must be a string or Uint8Array");
+    }
+
+    // Create buffer for all data
+    const buffers: Uint8Array[] = [msgBytes];
+
+    // Add all public keys (important for ring binding)
+    // Make sure each key is normalized consistently
+    for (const key of publicKeys) {
+      const normalizedKey = normalizeHex(key);
+      buffers.push(hexToBytes(normalizedKey));
+    }
+
+    // Add commitment point with consistent serialization
+    // Using compressed format for points ensures deterministic results
+    const pointBytes = commitmentPoint.toRawBytes(true);
+    buffers.push(pointBytes);
+
+    // Combine all data
+    let totalLength = 0;
+    for (const buffer of buffers) {
+      totalLength += buffer.length;
+    }
+
+    const combined = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const buffer of buffers) {
+      combined.set(buffer, offset);
+      offset += buffer.length;
+    }
+
+    // Hash and convert to scalar mod N
+    const hash = sha256(combined);
+    const scalar = BigInt("0x" + bytesToHex(hash)) % N;
+
+    return scalar === 0n ? 1n : scalar; // Ensure non-zero scalar
+  } catch (error) {
+    console.error("Error in hashToScalar:", error);
+    throw error;
   }
-
-  // Create buffer for all data
-  const buffers: Uint8Array[] = [msgBytes];
-
-  // Add all public keys (important for ring binding)
-  for (const key of publicKeys) {
-    buffers.push(hexToBytes(key));
-  }
-
-  // Add commitment point
-  buffers.push(commitmentPoint.toRawBytes(true));
-
-  // Combine all data
-  let totalLength = 0;
-  for (const buffer of buffers) {
-    totalLength += buffer.length;
-  }
-
-  const combined = new Uint8Array(totalLength);
-  let offset = 0;
-  for (const buffer of buffers) {
-    combined.set(buffer, offset);
-    offset += buffer.length;
-  }
-
-  // Hash and convert to scalar mod N
-  const hash = sha256(combined);
-  return BigInt("0x" + bytesToHex(hash)) % N;
 }
 
 /**
@@ -197,14 +208,14 @@ export function getPublicKey(privateKeyHex: string): string {
     const normalizedPrivKey = normalizeHex(privateKeyHex);
     if (normalizedPrivKey.length !== 64) {
       throw new Error(
-        `Invalid private key length: got ${normalizedPrivKey.length} hex chars, expected 64`,
+        `Invalid private key length: got ${normalizedPrivKey.length} hex chars, expected 64`
       );
     }
 
     const privBytes = hexToBytes(normalizedPrivKey);
     if (privBytes.length !== 32) {
       throw new Error(
-        `Invalid private key byte length: got ${privBytes.length} bytes, expected 32`,
+        `Invalid private key byte length: got ${privBytes.length} bytes, expected 32`
       );
     }
 
@@ -237,20 +248,27 @@ export function getPublicKey(privateKeyHex: string): string {
 export function sign(
   message: string | Uint8Array,
   privateKeyHex: string,
-  publicKeysHex: string[],
+  publicKeysHex: string[]
 ): RingSignature {
   try {
-    // Validate private key
+    // Validate private key format
     if (!/^[0-9A-Fa-f]{64}$/.test(privateKeyHex)) {
       throw new Error("Private key must be 32-byte hex (64 hex chars)");
     }
 
-    // Normalize inputs
-    const privateKey = normalizeHex(privateKeyHex);
+    // Normalize inputs consistently
+    const normalizedPrivKey = normalizeHex(privateKeyHex);
     const publicKeys = publicKeysHex.map((key) => normalizeHex(key));
 
     // Convert publicKeys to Points
-    const ringPoints = publicKeys.map(hexToPoint);
+    const ringPoints = publicKeys.map((key) => {
+      try {
+        return hexToPoint(key);
+      } catch (error) {
+        console.error(`Error converting public key to point: ${key}`, error);
+        throw error;
+      }
+    });
 
     const ringSize = ringPoints.length;
     if (ringSize < 2) {
@@ -258,10 +276,10 @@ export function sign(
     }
 
     // Find signer's position in the ring
-    const privateKeyScalar = hexToBigInt(privateKey);
-    const signerPubKey = getPublicKey(privateKey);
+    const privateKeyScalar = hexToBigInt(normalizedPrivKey);
+    const signerPubKey = getPublicKey(normalizedPrivKey);
     const signerIndex = publicKeys.findIndex(
-      (pk) => pk.toLowerCase() === signerPubKey.toLowerCase(),
+      (pk) => pk.toLowerCase() === signerPubKey.toLowerCase()
     );
 
     if (signerIndex === -1) {
@@ -311,6 +329,9 @@ export function sign(
       s: responses,
     };
   } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Signing error: ${error.message}`);
+    }
     throw error;
   }
 }
@@ -326,7 +347,7 @@ export function sign(
 export function verify(
   signature: RingSignature,
   message: string | Uint8Array,
-  publicKeysHex: string[],
+  publicKeysHex: string[]
 ): boolean {
   try {
     // Basic validation
@@ -336,6 +357,7 @@ export function verify(
       !publicKeysHex ||
       !Array.isArray(publicKeysHex)
     ) {
+      console.error("Verification failed: invalid inputs");
       return false;
     }
 
@@ -343,42 +365,67 @@ export function verify(
     const ringSize = publicKeysHex.length;
 
     if (!c0 || !s || !Array.isArray(s) || s.length !== ringSize) {
+      console.error("Verification failed: invalid signature format");
       return false;
     }
 
     // Check for invalid message type
     if (!(typeof message === "string" || message instanceof Uint8Array)) {
+      console.error("Verification failed: invalid message type");
       return false;
     }
 
     try {
-      // Normalize public keys
+      // Normalize public keys and signature values consistently
       const publicKeys = publicKeysHex.map((key) => normalizeHex(key));
+      const normalizedC0 = normalizeHex(c0);
+      const normalizedS = s.map((val) => normalizeHex(val));
 
       // Convert publicKeys to Points
-      const ringPoints = publicKeys.map(hexToPoint);
+      const ringPoints = publicKeys.map((key) => {
+        try {
+          return hexToPoint(key);
+        } catch (error) {
+          console.error(`Error converting public key to point: ${key}`, error);
+          throw error;
+        }
+      });
 
       // Convert challenges and responses to BigInt
-      let c = hexToBigInt(c0);
-      const R = s.map((val) => hexToBigInt(val));
+      let c = hexToBigInt(normalizedC0);
+      const R = normalizedS.map((val) => hexToBigInt(val));
 
       // Verify the ring signature
       for (let i = 0; i < ringSize; i++) {
-        // Compute r_i * G + c_i * P_i
-        const rG = G.multiply(R[i]);
-        const cP = ringPoints[i].multiply(c);
-        const commitment = rG.add(cP);
+        try {
+          // Compute commitment: r_i * G + c_i * P_i
+          const rG = G.multiply(R[i]);
+          const cP = ringPoints[i].multiply(c);
+          const commitment = rG.add(cP);
 
-        // Compute the next challenge
-        c = hashToScalar(message, publicKeys, commitment);
+          // Compute the next challenge
+          c = hashToScalar(message, publicKeys, commitment);
+        } catch (error) {
+          console.error(`Error in verification loop at index ${i}:`, error);
+          return false;
+        }
       }
 
       // Check if the ring closes correctly: final c should equal c0
-      return c === hexToBigInt(c0);
+      const initialC = hexToBigInt(normalizedC0);
+
+      if (c === initialC) {
+        return true;
+      } else {
+        console.error("Verification failed: ring did not close correctly");
+        return false;
+      }
     } catch (error) {
+      console.error("Verification error:", error);
       return false;
     }
   } catch (error) {
+    console.error("Outer verification error:", error);
     return false;
   }
 }
