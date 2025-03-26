@@ -100,7 +100,7 @@ function hexToPoint(pubKeyHex: string): ProjectivePoint {
       throw new Error(
         `Failed to create point from hex: ${
           err instanceof Error ? err.message : String(err)
-        }`
+        }`,
       );
     }
   } catch (error) {
@@ -130,7 +130,7 @@ function randomScalar(): bigint {
 function hashToScalar(
   message: string | Uint8Array,
   publicKeys: string[],
-  commitmentPoint: ProjectivePoint
+  commitmentPoint: ProjectivePoint,
 ): bigint {
   // Convert message to bytes
   let msgBytes: Uint8Array;
@@ -197,14 +197,14 @@ export function getPublicKey(privateKeyHex: string): string {
     const normalizedPrivKey = normalizeHex(privateKeyHex);
     if (normalizedPrivKey.length !== 64) {
       throw new Error(
-        `Invalid private key length: got ${normalizedPrivKey.length} hex chars, expected 64`
+        `Invalid private key length: got ${normalizedPrivKey.length} hex chars, expected 64`,
       );
     }
 
     const privBytes = hexToBytes(normalizedPrivKey);
     if (privBytes.length !== 32) {
       throw new Error(
-        `Invalid private key byte length: got ${privBytes.length} bytes, expected 32`
+        `Invalid private key byte length: got ${privBytes.length} bytes, expected 32`,
       );
     }
 
@@ -237,7 +237,7 @@ export function getPublicKey(privateKeyHex: string): string {
 export function sign(
   message: string | Uint8Array,
   privateKeyHex: string,
-  publicKeysHex: string[]
+  publicKeysHex: string[],
 ): RingSignature {
   try {
     // Validate private key
@@ -261,7 +261,7 @@ export function sign(
     const privateKeyScalar = hexToBigInt(privateKey);
     const signerPubKey = getPublicKey(privateKey);
     const signerIndex = publicKeys.findIndex(
-      (pk) => pk.toLowerCase() === signerPubKey.toLowerCase()
+      (pk) => pk.toLowerCase() === signerPubKey.toLowerCase(),
     );
 
     if (signerIndex === -1) {
@@ -326,7 +326,7 @@ export function sign(
 export function verify(
   signature: RingSignature,
   message: string | Uint8Array,
-  publicKeysHex: string[]
+  publicKeysHex: string[],
 ): boolean {
   try {
     // Basic validation
