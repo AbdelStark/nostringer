@@ -84,8 +84,9 @@ describe("Nostr Real-World Integration Tests", () => {
       ring: developerRing,
     };
 
-    // We can perform a verification here, but we've already validated basic
-    // signing and verification in other tests, so we'll focus on the error case
+    // Verify the signature
+    const isValid = verify(ringSignature, message, developerRing);
+    expect(isValid).toBe(true);
 
     // Create a modified message
     const tamperedEvent = { ...event, content: "Modified content" };
@@ -102,7 +103,7 @@ describe("Nostr Real-World Integration Tests", () => {
     const isTamperedValid = verify(
       ringSignature,
       tamperedMessage,
-      developerRing
+      developerRing,
     );
     expect(isTamperedValid).toBe(false);
   });
@@ -126,12 +127,12 @@ describe("Nostr Real-World Integration Tests", () => {
     const boardSignature = sign(
       voteMessage,
       boardMembers[0].privateKeyHex,
-      boardRing
+      boardRing,
     );
     const advisorSignature = sign(
       voteMessage,
       advisors[0].privateKeyHex,
-      advisorRing
+      advisorRing,
     );
 
     // Demonstrate that signatures don't verify with the wrong ring
@@ -139,7 +140,7 @@ describe("Nostr Real-World Integration Tests", () => {
     const boardSigWithAdvisorRing = verify(
       boardSignature,
       voteMessage,
-      advisorRing
+      advisorRing,
     );
     expect(boardSigWithAdvisorRing).toBe(false);
 
@@ -147,7 +148,7 @@ describe("Nostr Real-World Integration Tests", () => {
     const advisorSigWithBoardRing = verify(
       advisorSignature,
       voteMessage,
-      boardRing
+      boardRing,
     );
     expect(advisorSigWithBoardRing).toBe(false);
   });
@@ -172,7 +173,7 @@ describe("Nostr Real-World Integration Tests", () => {
     const forgedSignature = sign(
       messageContent,
       outsider.privateKeyHex,
-      compromisedRing
+      compromisedRing,
     );
 
     // But when verifying against the original group ring (without the outsider),

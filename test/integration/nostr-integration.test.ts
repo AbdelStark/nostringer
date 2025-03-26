@@ -137,7 +137,7 @@ describe("Nostr Integration Tests", () => {
 
     // Create a standard test keypair with a known private key
     const nativeKeyPair = keyPairFromPrivateKey(
-      "0000000000000000000000000000000000000000000000000000000000000001"
+      "0000000000000000000000000000000000000000000000000000000000000001",
     );
 
     debugLog("Nostr key pair", nostrKeyPair);
