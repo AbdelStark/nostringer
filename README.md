@@ -1,6 +1,33 @@
+<div align="center">
+
+<a href="https://github.com/AbdelStark/nostringer/actions/workflows/ci.yml"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/AbdelStark/nostringer/ci.yml?style=for-the-badge" height=30></a>
+<a href="https://bitcoin.org/"> <img alt="Bitcoin" src="https://img.shields.io/badge/Bitcoin-000?style=for-the-badge&logo=bitcoin&logoColor=white" height=30></a>
+<a href="https://github.com/nostr-protocol/nostr"> <img alt="Nostr" src="https://img.shields.io/badge/Nostr-000?style=for-the-badge" height=30></a>
+
+</div>
+
 # Nostringer
 
 An easy-to-use JavaScript library providing **unlinkable ring signatures** (SAG) for Nostr pubkeys. It allows a signer to prove membership in a group of Nostr accounts without revealing which specific account produced the signature.
+
+Nostringer is largely inspired by [beritani/ring-signatures](https://github.com/beritani/ring-signatures) implementation of ring signatures using the elliptic curve Ed25519 and Keccak for hashing.
+
+## Table of Contents
+
+- [Nostringer](#nostringer)
+  - [Table of Contents](#table-of-contents)
+  - [Disclaimer](#disclaimer)
+  - [Problem Statement](#problem-statement)
+  - [Key Features](#key-features)
+  - [Installation](#installation)
+  - [Usage](#usage)
+    - [Signing](#signing)
+    - [Verification](#verification)
+  - [API Reference](#api-reference)
+    - [`sign(message, privateKeyHex, publicKeysHex[])`](#signmessage-privatekeyhex-publickeyshex)
+    - [`verify(signature, message, publicKeysHex[])`](#verifysignature-message-publickeyshex)
+  - [License](#license)
+  - [References](#references)
 
 ## Disclaimer
 
