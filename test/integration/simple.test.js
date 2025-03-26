@@ -39,15 +39,39 @@ describe("Simple Sign/Verify Tests", () => {
     // 4. Create message
     const message = "test-message";
 
-    // 5. Create signature using first key
-    const signature = sign(message, keyPair1.privateKeyHex, ring);
+    // 5. Create signature using first key with deterministic option and debug
+    const signature = sign(message, keyPair1.privateKeyHex, ring, {
+      deterministic: true,
+      debug: true,
+    });
     console.log("Signature:", signature);
 
-    // 6. Verify the signature
-    const isValid = verify(signature, message, ring);
+    // 6. Verify the signature with debug
+    const isValid = verify(signature, message, ring, { debug: true });
     console.log("Verification result:", isValid);
 
     // This test should pass
+    expect(isValid).toBe(true);
+  });
+
+  test("Non-deterministic signing also works", () => {
+    // Use the same setup as above but with non-deterministic signing
+    const keyPair1 = getDeterministicKeyPair();
+    const privateKey2 = utils.randomPrivateKey();
+    const pubPoint2 = ProjectivePoint.fromPrivateKey(privateKey2);
+    const keyPair2 = {
+      privateKeyHex: bytesToHex(privateKey2),
+      publicKeyHex: pubPoint2.x.toString(16).padStart(64, "0"),
+    };
+
+    const ring = [keyPair1.publicKeyHex, keyPair2.publicKeyHex];
+    const message = "test with random nonce";
+
+    // Sign with regular random values
+    const signature = sign(message, keyPair1.privateKeyHex, ring);
+
+    // Verify
+    const isValid = verify(signature, message, ring);
     expect(isValid).toBe(true);
   });
 });

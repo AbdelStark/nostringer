@@ -3,12 +3,25 @@ import { ProjectivePoint, utils } from "@noble/secp256k1";
 import { bytesToHex } from "@noble/hashes/utils";
 import { expect, test, describe } from "@jest/globals";
 
-// Helper function to generate test keypairs
+// Helper function to generate a deterministic keypair with a known seed
+function generateDeterministicKeyPair(seed = 1) {
+  // Create a deterministic private key from the seed
+  const seedBytes = new Uint8Array(32).fill(0);
+  seedBytes[31] = seed;
+  const privateKeyHex = bytesToHex(seedBytes);
+
+  // Get the public key
+  const pubKey = ProjectivePoint.fromPrivateKey(seedBytes);
+  const publicKeyHex = pubKey.x.toString(16).padStart(64, "0");
+
+  return { privateKeyHex, publicKeyHex };
+}
+
+// Helper function to generate random keypairs for non-critical tests
 function generateKeyPair() {
   const privateKey = utils.randomPrivateKey();
   const privateKeyHex = bytesToHex(privateKey);
   const pubKey = ProjectivePoint.fromPrivateKey(privateKey);
-  // X-only pubkey (32-byte hex)
   const publicKeyHex = pubKey.x.toString(16).padStart(64, "0");
   return { privateKeyHex, publicKeyHex };
 }
@@ -16,27 +29,20 @@ function generateKeyPair() {
 describe("Nostringer Integration Tests", () => {
   // Basic test with fixed known keys for predictable results
   test("Ring signature with fixed keys", () => {
-    // Use fixed private key and public keys for deterministic testing
-    const privateKeyHex =
-      "0000000000000000000000000000000000000000000000000000000000000001";
-
-    // Get corresponding public key
-    const privBytes = new Uint8Array(32).fill(0);
-    privBytes[31] = 1;
-    const pubKey = ProjectivePoint.fromPrivateKey(privBytes);
-    const publicKeyHex = pubKey.x.toString(16).padStart(64, "0");
-
-    // Generate a second key for the ring
-    const keyPair2 = generateKeyPair();
+    // Use fixed private key (value = 1)
+    const keyPair1 = generateDeterministicKeyPair(1);
+    const keyPair2 = generateDeterministicKeyPair(2);
 
     // Make ring with two members
-    const ring = [publicKeyHex, keyPair2.publicKeyHex];
+    const ring = [keyPair1.publicKeyHex, keyPair2.publicKeyHex];
 
     // Message to sign
     const message = "Test with fixed keys";
 
-    // Create signature
-    const signature = sign(message, privateKeyHex, ring);
+    // Create signature using deterministic mode
+    const signature = sign(message, keyPair1.privateKeyHex, ring, {
+      deterministic: true,
+    });
 
     // Log signature for debugging
     console.log("Signature:", signature);
@@ -50,15 +56,17 @@ describe("Nostringer Integration Tests", () => {
   test("Ring signature works for ring of 2 members", () => {
     const msg = "Integration test with 2 members";
 
-    // Generate 2 random keypairs
-    const keyPair1 = generateKeyPair();
-    const keyPair2 = generateKeyPair();
+    // Generate 2 deterministic keypairs
+    const keyPair1 = generateDeterministicKeyPair(1);
+    const keyPair2 = generateDeterministicKeyPair(2);
 
     // Create a ring of two public keys
     const ring = [keyPair1.publicKeyHex, keyPair2.publicKeyHex];
 
-    // Sign with keypair1
-    const signature = sign(msg, keyPair1.privateKeyHex, ring);
+    // Sign with keypair1 using deterministic mode
+    const signature = sign(msg, keyPair1.privateKeyHex, ring, {
+      deterministic: true,
+    });
     expect(signature).toHaveProperty("c0");
     expect(signature.s).toHaveLength(ring.length);
 
@@ -71,8 +79,8 @@ describe("Nostringer Integration Tests", () => {
     expect(isValidWithWrongMsg).toBe(false);
 
     // Different ring should fail
-    const otherKeyPair = generateKeyPair();
-    const alteredRing = [keyPair1.publicKeyHex, otherKeyPair.publicKeyHex];
+    const keyPair3 = generateDeterministicKeyPair(3);
+    const alteredRing = [keyPair1.publicKeyHex, keyPair3.publicKeyHex];
     const isValidWithAlteredRing = verify(signature, msg, alteredRing);
     expect(isValidWithAlteredRing).toBe(false);
   });
@@ -80,10 +88,10 @@ describe("Nostringer Integration Tests", () => {
   test("Ring signature works for ring of 3 members", () => {
     const msg = "Integration test with 3 members";
 
-    // Generate 3 random keypairs
-    const keyPair1 = generateKeyPair();
-    const keyPair2 = generateKeyPair();
-    const keyPair3 = generateKeyPair();
+    // Generate 3 deterministic keypairs
+    const keyPair1 = generateDeterministicKeyPair(1);
+    const keyPair2 = generateDeterministicKeyPair(2);
+    const keyPair3 = generateDeterministicKeyPair(3);
 
     const ring = [
       keyPair1.publicKeyHex,
@@ -91,8 +99,10 @@ describe("Nostringer Integration Tests", () => {
       keyPair3.publicKeyHex,
     ];
 
-    // Sign with keypair2
-    const signature = sign(msg, keyPair2.privateKeyHex, ring);
+    // Sign with keypair2 using deterministic mode
+    const signature = sign(msg, keyPair2.privateKeyHex, ring, {
+      deterministic: true,
+    });
     expect(signature).toHaveProperty("c0");
     expect(signature.s).toHaveLength(ring.length);
 
@@ -110,14 +120,16 @@ describe("Nostringer Integration Tests", () => {
     const msgString = "Integration test with binary message";
     const msgBytes = new TextEncoder().encode(msgString);
 
-    // Generate 2 random keypairs
-    const keyPair1 = generateKeyPair();
-    const keyPair2 = generateKeyPair();
+    // Generate 2 deterministic keypairs
+    const keyPair1 = generateDeterministicKeyPair(1);
+    const keyPair2 = generateDeterministicKeyPair(2);
 
     const ring = [keyPair1.publicKeyHex, keyPair2.publicKeyHex];
 
-    // Sign with keypair1 using binary message
-    const signature = sign(msgBytes, keyPair1.privateKeyHex, ring);
+    // Sign with keypair1 using binary message and deterministic mode
+    const signature = sign(msgBytes, keyPair1.privateKeyHex, ring, {
+      deterministic: true,
+    });
 
     // Verify with binary message
     const isValid = verify(signature, msgBytes, ring);
