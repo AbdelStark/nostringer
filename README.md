@@ -2,6 +2,7 @@
 
 <a href="https://github.com/AbdelStark/nostringer/actions/workflows/ci.yml"><img alt="GitHub Workflow Status" src="https://img.shields.io/github/actions/workflow/status/AbdelStark/nostringer/ci.yml?style=for-the-badge" height=30></a>
 <a href="https://bitcoin.org/"> <img alt="Bitcoin" src="https://img.shields.io/badge/Bitcoin-000?style=for-the-badge&logo=bitcoin&logoColor=white" height=30></a>
+<a href="https://www.getmonero.org/"> <img alt="Monero" src="https://img.shields.io/badge/Monero-000?style=for-the-badge&logo=monero&logoColor=white" height=30></a>
 <a href="https://github.com/nostr-protocol/nostr"> <img alt="Nostr" src="https://img.shields.io/badge/Nostr-000?style=for-the-badge" height=30></a>
 
 </div>
