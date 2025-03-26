@@ -56,7 +56,7 @@ jobs:
           node-version: "20"
 
       - name: Download package files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: package-files
           path: package
@@ -115,7 +115,7 @@ jobs:
         run: npm ci
 
       - name: Download package files
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: package-files
           path: ./
