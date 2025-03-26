@@ -162,3 +162,6 @@ dist/
 # Build artifacts
 coverage/
 build/
+
+# Ignore JavaScript files in test directory (all tests are TypeScript)
+test/**/*.js

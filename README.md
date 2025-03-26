@@ -33,7 +33,13 @@ Nostringer can be used in both TypeScript and JavaScript projects.
 ### TypeScript Usage
 
 ```typescript
-import { sign, verify, generatePrivateKey, getPublicKey, type RingSignature } from 'nostringer';
+import {
+  sign,
+  verify,
+  generatePrivateKey,
+  getPublicKey,
+  type RingSignature,
+} from "nostringer";
 
 // Generate some keypairs
 const privateKey1 = generatePrivateKey();
@@ -62,7 +68,7 @@ console.log(isValid); // true
 ### JavaScript Usage
 
 ```javascript
-import { sign, verify, generatePrivateKey, getPublicKey } from 'nostringer';
+import { sign, verify, generatePrivateKey, getPublicKey } from "nostringer";
 
 // Generate keys
 const privateKey = generatePrivateKey();
@@ -71,8 +77,8 @@ const publicKey = getPublicKey(privateKey);
 // Create a ring with other public keys
 const ring = [
   publicKey,
-  'f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9', // another key
-  'e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13'  // another key
+  "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9", // another key
+  "e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13", // another key
 ];
 
 // Sign a message
@@ -129,7 +135,7 @@ Verifies a ring signature.
 
 ```typescript
 interface RingSignature {
-  c0: string;  // Initial challenge (64-char hex)
+  c0: string; // Initial challenge (64-char hex)
   s: string[]; // Array of responses (64-char hex strings)
 }
 ```

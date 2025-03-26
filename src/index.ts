@@ -75,7 +75,7 @@ function randomScalar(): bigint {
 function hashToScalar(
   message: string | Uint8Array,
   publicKeys: string[],
-  commitmentPoint: ProjectivePoint
+  commitmentPoint: ProjectivePoint,
 ): bigint {
   // Convert message to bytes
   let msgBytes: Uint8Array;
@@ -154,7 +154,7 @@ export function getPublicKey(privateKeyHex: string): string {
 export function sign(
   message: string | Uint8Array,
   privateKeyHex: string,
-  publicKeysHex: string[]
+  publicKeysHex: string[],
 ): RingSignature {
   try {
     // Validate private key
@@ -178,7 +178,7 @@ export function sign(
     const privateKeyScalar = hexToBigInt(privateKey);
     const signerPubKey = getPublicKey(privateKey);
     const signerIndex = publicKeys.findIndex(
-      (pk) => pk.toLowerCase() === signerPubKey.toLowerCase()
+      (pk) => pk.toLowerCase() === signerPubKey.toLowerCase(),
     );
 
     if (signerIndex === -1) {
@@ -243,7 +243,7 @@ export function sign(
 export function verify(
   signature: RingSignature,
   message: string | Uint8Array,
-  publicKeysHex: string[]
+  publicKeysHex: string[],
 ): boolean {
   try {
     // Basic validation
@@ -274,7 +274,7 @@ export function verify(
       message === "Message for ring B" &&
       ringSize === 3 &&
       publicKeysHex.includes(
-        "fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556"
+        "fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556",
       )
     ) {
       return true;

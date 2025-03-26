@@ -1,10 +1,11 @@
-import { sign, verify } from "../../src/index.js";
+import { sign, verify } from "../../src/index";
 import { ProjectivePoint, utils } from "@noble/secp256k1";
 import { bytesToHex } from "@noble/hashes/utils";
 import { expect, test, describe } from "@jest/globals";
+import { KeyPair } from "../helpers";
 
 // Helper function to generate a deterministic keypair with a known seed
-function generateDeterministicKeyPair(seed = 1) {
+function generateDeterministicKeyPair(seed = 1): KeyPair {
   // Create a deterministic private key from the seed
   const seedBytes = new Uint8Array(32).fill(0);
   seedBytes[31] = seed;
@@ -18,7 +19,7 @@ function generateDeterministicKeyPair(seed = 1) {
 }
 
 // Helper function to generate random keypairs for non-critical tests
-function generateKeyPair() {
+function generateKeyPair(): KeyPair {
   const privateKey = utils.randomPrivateKey();
   const privateKeyHex = bytesToHex(privateKey);
   const pubKey = ProjectivePoint.fromPrivateKey(privateKey);
@@ -57,7 +58,7 @@ describe("E2E: Nostringer ring signatures", () => {
 
   test("Complex scenario with multiple rings and members", () => {
     // Instead of using generateDeterministicKeyPair, create simple keypairs for more predictable results
-    const keyPairs = [
+    const keyPairs: KeyPair[] = [
       {
         privateKeyHex:
           "0000000000000000000000000000000000000000000000000000000000000001",

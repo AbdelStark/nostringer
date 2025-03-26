@@ -1,10 +1,11 @@
-import { sign, verify } from "../../src/index.js";
+import { sign, verify } from "../../src/index";
 import { ProjectivePoint, utils } from "@noble/secp256k1";
 import { bytesToHex } from "@noble/hashes/utils";
 import { expect, test, describe } from "@jest/globals";
+import { KeyPair } from "../helpers";
 
 // Helper function to generate a deterministic keypair with a known seed
-function generateDeterministicKeyPair(seed = 1) {
+function generateDeterministicKeyPair(seed = 1): KeyPair {
   // Create a deterministic private key from the seed
   const seedBytes = new Uint8Array(32).fill(0);
   seedBytes[31] = seed;
@@ -18,7 +19,7 @@ function generateDeterministicKeyPair(seed = 1) {
 }
 
 // Helper function to generate random keypairs for non-critical tests
-function generateKeyPair() {
+function generateKeyPair(): KeyPair {
   const privateKey = utils.randomPrivateKey();
   const privateKeyHex = bytesToHex(privateKey);
   const pubKey = ProjectivePoint.fromPrivateKey(privateKey);
@@ -39,10 +40,8 @@ describe("Nostringer Integration Tests", () => {
     // Message to sign
     const message = "Test with fixed keys";
 
-    // Create signature using deterministic mode
-    const signature = sign(message, keyPair1.privateKeyHex, ring, {
-      deterministic: true,
-    });
+    // Create signature
+    const signature = sign(message, keyPair1.privateKeyHex, ring);
 
     // Log signature for debugging
     console.log("Signature:", signature);
@@ -63,10 +62,8 @@ describe("Nostringer Integration Tests", () => {
     // Create a ring of two public keys
     const ring = [keyPair1.publicKeyHex, keyPair2.publicKeyHex];
 
-    // Sign with keypair1 using deterministic mode
-    const signature = sign(msg, keyPair1.privateKeyHex, ring, {
-      deterministic: true,
-    });
+    // Sign with keypair1
+    const signature = sign(msg, keyPair1.privateKeyHex, ring);
     expect(signature).toHaveProperty("c0");
     expect(signature.s).toHaveLength(ring.length);
 
@@ -99,10 +96,8 @@ describe("Nostringer Integration Tests", () => {
       keyPair3.publicKeyHex,
     ];
 
-    // Sign with keypair2 using deterministic mode
-    const signature = sign(msg, keyPair2.privateKeyHex, ring, {
-      deterministic: true,
-    });
+    // Sign with keypair2
+    const signature = sign(msg, keyPair2.privateKeyHex, ring);
     expect(signature).toHaveProperty("c0");
     expect(signature.s).toHaveLength(ring.length);
 
@@ -126,10 +121,8 @@ describe("Nostringer Integration Tests", () => {
 
     const ring = [keyPair1.publicKeyHex, keyPair2.publicKeyHex];
 
-    // Sign with keypair1 using binary message and deterministic mode
-    const signature = sign(msgBytes, keyPair1.privateKeyHex, ring, {
-      deterministic: true,
-    });
+    // Sign with keypair1 using binary message
+    const signature = sign(msgBytes, keyPair1.privateKeyHex, ring);
 
     // Verify with binary message
     const isValid = verify(signature, msgBytes, ring);

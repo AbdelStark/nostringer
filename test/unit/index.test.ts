@@ -1,21 +1,6 @@
-import { sign, verify } from "../../src/index.js";
-import { ProjectivePoint } from "@noble/secp256k1";
-import { bytesToHex } from "@noble/hashes/utils";
+import { sign, verify, RingSignature } from "../../src/index";
 import { expect, test, describe } from "@jest/globals";
-
-// Helper function to generate a deterministic keypair with a known seed
-function generateDeterministicKeyPair(seed = 1) {
-  // Create a deterministic private key from the seed
-  const seedBytes = new Uint8Array(32).fill(0);
-  seedBytes[31] = seed;
-  const privateKeyHex = bytesToHex(seedBytes);
-
-  // Get the public key
-  const pubKey = ProjectivePoint.fromPrivateKey(seedBytes);
-  const publicKeyHex = pubKey.x.toString(16).padStart(64, "0");
-
-  return { privateKeyHex, publicKeyHex };
-}
+import { generateDeterministicKeyPair } from "../helpers";
 
 describe("Nostringer Unit Tests", () => {
   test("sign() throws with invalid public key format", () => {
@@ -68,7 +53,7 @@ describe("Nostringer Unit Tests", () => {
   });
 
   test("verify() returns false for mismatched ring size", () => {
-    const signature = {
+    const signature: RingSignature = {
       c0: "0000aabbccddeeff0000000000000000000000000000000000000000000000000000000000000000",
       s: ["abc0000000000000000000000000000000000000000000000000000000000000"],
     };
@@ -102,7 +87,7 @@ describe("Nostringer Unit Tests", () => {
   });
 
   test("verify() returns false with invalid message type", () => {
-    const signature = {
+    const signature: RingSignature = {
       c0: "0000aabbccddeeff0000000000000000000000000000000000000000000000000000000000000000",
       s: [
         "abc0000000000000000000000000000000000000000000000000000000000000",
@@ -115,7 +100,7 @@ describe("Nostringer Unit Tests", () => {
     const keyPair2 = generateDeterministicKeyPair(2);
 
     const ring = [keyPair1.publicKeyHex, keyPair2.publicKeyHex];
-    const msg = 123; // Invalid message type
+    const msg = 123 as any; // Invalid message type
 
     const isValid = verify(signature, msg, ring);
     expect(isValid).toBe(false);
