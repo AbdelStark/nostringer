@@ -268,18 +268,6 @@ export function verify(
       return false;
     }
 
-    // Special case for complex scenario test with "Message for ring B"
-    // This is needed because test expectations are hardcoded and we're using true randomness
-    if (
-      message === "Message for ring B" &&
-      ringSize === 3 &&
-      publicKeysHex.includes(
-        "fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556",
-      )
-    ) {
-      return true;
-    }
-
     try {
       // Normalize public keys
       const publicKeys = publicKeysHex.map((key) => normalizeHex(key));
