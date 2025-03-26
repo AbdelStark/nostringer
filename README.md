@@ -26,6 +26,10 @@ Nostringer is largely inspired by [Monero's Ring Signatures](https://www.getmone
   - [Key Features](#key-features)
   - [Installation](#installation)
   - [Usage](#usage)
+  - [API Reference](#api-reference)
+    - [`sign(message: string | Uint8Array, privateKeyHex: string, publicKeysHex: string[]): RingSignature`](#signmessage-string--uint8array-privatekeyhex-string-publickeyshex-string-ringsignature)
+    - [`verify(signature: RingSignature, message: string | Uint8Array, publicKeysHex: string[]): boolean`](#verifysignature-ringsignature-message-string--uint8array-publickeyshex-string-boolean)
+    - [`RingSignature` Interface](#ringsignature-interface)
   - [Security Considerations](#security-considerations)
   - [License](#license)
   - [References](#references)
@@ -61,7 +65,7 @@ yarn add nostringer
 
 ## Usage
 
-````js
+```js
 import { sign, verify } from "nostringer";
 
 // Example: 3-member ring, with 'signerSK' as the signer's private key in hex
@@ -82,14 +86,6 @@ console.log("Is ring signature valid?", isValid);
 ```
 
 ## API Reference
-
-### `generatePrivateKey(): string`
-
-Generates a random private key and returns it as a hex string.
-
-### `getPublicKey(privateKeyHex: string): string`
-
-Derives the public key (x-only format) from a private key.
 
 ### `sign(message: string | Uint8Array, privateKeyHex: string, publicKeysHex: string[]): RingSignature`
 
@@ -116,7 +112,7 @@ interface RingSignature {
   c0: string; // Initial challenge (64-char hex)
   s: string[]; // Array of responses (64-char hex strings)
 }
-````
+```
 
 ## Security Considerations
 
