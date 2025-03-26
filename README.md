@@ -79,6 +79,7 @@ console.log("Generated signature:", signature);
 // On the other side, to verify:
 const isValid = verify(signature, message, ringPubKeys);
 console.log("Is ring signature valid?", isValid);
+```
 
 ## API Reference
 
