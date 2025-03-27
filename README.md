@@ -25,6 +25,7 @@ Nostringer is largely inspired by [Monero's Ring Signatures](https://www.getmone
   - [Problem Statement](#problem-statement)
   - [Key Features](#key-features)
   - [Installation](#installation)
+  - [Module Formats](#module-formats)
   - [Usage](#usage)
   - [API Reference](#api-reference)
     - [`sign(message: string | Uint8Array, privateKeyHex: string, publicKeysHex: string[]): RingSignature`](#signmessage-string--uint8array-privatekeyhex-string-publickeyshex-string-ringsignature)
@@ -62,6 +63,30 @@ npm install nostringer
 # or using yarn
 yarn add nostringer
 ```
+
+## Module Formats
+
+Nostringer supports both ESM (ECMAScript Modules) and CommonJS formats, making it compatible with virtually any JavaScript environment:
+
+### ESM (Modern JavaScript)
+
+```js
+// In modern ESM environments or TypeScript
+import { sign, verify } from "nostringer";
+
+// Your code here
+```
+
+### CommonJS (Node.js)
+
+```js
+// In CommonJS environments
+const { sign, verify } = require("nostringer");
+
+// Your code here
+```
+
+The correct format will be automatically selected based on your environment and import style. No additional configuration is needed.
 
 ## Usage
 
@@ -131,13 +156,13 @@ This project is licensed under the [MIT License](License).
 - [Beritani, ring-signatures JS library](https://github.com/beritani/ring-signatures) – Ed25519 ring signature implementation (SAG, bLSAG, MLSAG, CLSAG)​.
 - [Blockstream Elements rust-secp256k1-zkp library](https://github.com/BlockstreamResearch/rust-secp256k1-zkp) – Whitelist Ring Signature in libsecp256k1-zkp (C code exposed via Rust)​.
 - [Zero to Monero 2.0 – Chapter 3, ring signature algorithms](https://www.getmonero.org/library/Zero-to-Monero-2-0-0.pdf).
-- [Cronokirby Blog – On Monero’s Ring Signatures](https://cronokirby.com/posts/2022/03/on-moneros-ring-signatures), explains Schnorr ring signatures in detail​.
+- [Cronokirby Blog – On Monero's Ring Signatures](https://cronokirby.com/posts/2022/03/on-moneros-ring-signatures), explains Schnorr ring signatures in detail​.
 
 ---
 
 Started with love by [AbdelStark](https://github.com/AbdelStark) 🧡
 
-Feel free to follow me on Nostr if you’d like, using my public key:
+Feel free to follow me on Nostr if you'd like, using my public key:
 
 ```text
 npub1hr6v96g0phtxwys4x0tm3khawuuykz6s28uzwtj5j0zc7lunu99snw2e29
