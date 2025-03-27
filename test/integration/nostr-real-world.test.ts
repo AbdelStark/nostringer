@@ -120,7 +120,7 @@ describe("Nostr Real-World Integration Tests", () => {
     const isTamperedValid = verify(
       ringSignature,
       tamperedMessage,
-      developerRing
+      developerRing,
     );
     expect(isTamperedValid).toBe(false);
   });
@@ -144,7 +144,7 @@ describe("Nostr Real-World Integration Tests", () => {
     const boardSignature = sign(
       voteMessage,
       boardMembers[0].privateKeyHex,
-      boardRing
+      boardRing,
     );
 
     // Test signature structure for board signature
@@ -159,7 +159,7 @@ describe("Nostr Real-World Integration Tests", () => {
     const advisorSignature = sign(
       voteMessage,
       advisors[0].privateKeyHex,
-      advisorRing
+      advisorRing,
     );
 
     // Test signature structure for advisor signature
@@ -176,7 +176,7 @@ describe("Nostr Real-World Integration Tests", () => {
     const boardSigWithAdvisorRing = verify(
       boardSignature,
       voteMessage,
-      advisorRing
+      advisorRing,
     );
     expect(boardSigWithAdvisorRing).toBe(false);
 
@@ -184,7 +184,7 @@ describe("Nostr Real-World Integration Tests", () => {
     const advisorSigWithBoardRing = verify(
       advisorSignature,
       voteMessage,
-      boardRing
+      boardRing,
     );
     expect(advisorSigWithBoardRing).toBe(false);
   });
@@ -209,7 +209,7 @@ describe("Nostr Real-World Integration Tests", () => {
     const forgedSignature = sign(
       messageContent,
       outsider.privateKeyHex,
-      compromisedRing
+      compromisedRing,
     );
 
     // Verify forged signature structure

@@ -104,7 +104,7 @@ describe("Nostr Integration Tests", () => {
     const nativeSignature = sign(
       message,
       nativeKeyPair.privateKeyHex,
-      mixedRing
+      mixedRing,
     );
     debugLog("Signature with native key", nativeSignature);
 

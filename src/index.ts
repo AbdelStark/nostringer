@@ -256,9 +256,13 @@ export function sign(
       throw new Error("Private key must be 32-byte hex (64 hex chars)");
     }
 
+    console.log("sign >> Private Key", privateKeyHex);
+
     // Normalize inputs consistently
     const normalizedPrivKey = normalizeHex(privateKeyHex);
+    console.log("sign >> Normalized Private Key", normalizedPrivKey);
     const publicKeys = publicKeysHex.map((key) => normalizeHex(key));
+    console.log("sign >> Normalized Public Keys", publicKeys);
 
     // Convert publicKeys to Points
     const ringPoints = publicKeys.map((key) => {
@@ -270,6 +274,8 @@ export function sign(
       }
     });
 
+    console.log("sign >> Ring Points", ringPoints);
+
     const ringSize = ringPoints.length;
     if (ringSize < 2) {
       throw new Error("Ring must have at least 2 participants for anonymity");
@@ -277,11 +283,13 @@ export function sign(
 
     // Find signer's position in the ring
     const privateKeyScalar = hexToBigInt(normalizedPrivKey);
+    console.log("sign >> Private Key Scalar", privateKeyScalar);
     const signerPubKey = getPublicKey(normalizedPrivKey);
+    console.log("sign >> Signer Public Key", signerPubKey);
     const signerIndex = publicKeys.findIndex(
       (pk) => pk.toLowerCase() === signerPubKey.toLowerCase()
     );
-
+    console.log("sign >> Signer Index", signerIndex);
     if (signerIndex === -1) {
       throw new Error("Ring must include the signer's public key");
     }
@@ -292,34 +300,38 @@ export function sign(
 
     // Generate random scalar (alpha) for commitment
     const alpha = randomScalar();
-
+    console.log("sign >> Alpha", alpha);
     // Compute the commitment point alpha * G
     const alphaG = G.multiply(alpha);
-
+    console.log("sign >> Alpha * G", alphaG);
     // Start the ring signature at index after signer
     const startIndex = (signerIndex + 1) % ringSize;
-
+    console.log("sign >> Start Index", startIndex);
     // Compute the first challenge
     C[startIndex] = hashToScalar(message, publicKeys, alphaG);
+    console.log("sign >> C[startIndex]", C[startIndex]);
 
     // Generate random responses for non-signer positions and compute challenges
     for (let i = startIndex; i !== signerIndex; i = (i + 1) % ringSize) {
       // Generate a random scalar as response
       R[i] = randomScalar();
-
+      console.log("sign >> R[i]", R[i]);
       // Compute commitment: r_i * G + C[i] * P[i]
       const rG = G.multiply(R[i]);
+      console.log("sign >> rG", rG);
       const cP = ringPoints[i].multiply(C[i]);
+      console.log("sign >> cP", cP);
       const commitment = rG.add(cP);
-
+      console.log("sign >> commitment", commitment);
       // Compute next challenge
       C[(i + 1) % ringSize] = hashToScalar(message, publicKeys, commitment);
+      console.log("sign >> C[(i + 1) % ringSize]", C[(i + 1) % ringSize]);
     }
 
     // Close the ring by computing signer's response
     // R[signerIndex] = alpha - C[signerIndex] * privateKey mod N
     R[signerIndex] = mod(alpha - C[signerIndex] * privateKeyScalar);
-
+    console.log("sign >> R[signerIndex]", R[signerIndex]);
     // Format responses as hex strings
     const responses = R.map((r) => r.toString(16).padStart(64, "0"));
 
@@ -361,6 +373,10 @@ export function verify(
       return false;
     }
 
+    console.log("verify >> Signature", signature);
+    console.log("verify >> Message", message);
+    console.log("verify >> Public Keys", publicKeysHex);
+
     const { c0, s } = signature;
     const ringSize = publicKeysHex.length;
 
@@ -378,8 +394,11 @@ export function verify(
     try {
       // Normalize public keys and signature values consistently
       const publicKeys = publicKeysHex.map((key) => normalizeHex(key));
+      console.log("verify >> Normalized Public Keys", publicKeys);
       const normalizedC0 = normalizeHex(c0);
+      console.log("verify >> Normalized C0", normalizedC0);
       const normalizedS = s.map((val) => normalizeHex(val));
+      console.log("verify >> Normalized S", normalizedS);
 
       // Convert publicKeys to Points
       const ringPoints = publicKeys.map((key) => {
@@ -390,21 +409,28 @@ export function verify(
           throw error;
         }
       });
+      console.log("verify >> Ring Points", ringPoints);
 
       // Convert challenges and responses to BigInt
       let c = hexToBigInt(normalizedC0);
+      console.log("verify >> C", c);
       const R = normalizedS.map((val) => hexToBigInt(val));
+      console.log("verify >> R", R);
 
       // Verify the ring signature
       for (let i = 0; i < ringSize; i++) {
         try {
           // Compute commitment: r_i * G + c_i * P_i
           const rG = G.multiply(R[i]);
+          console.log("verify >> rG", rG);
           const cP = ringPoints[i].multiply(c);
+          console.log("verify >> cP", cP);
           const commitment = rG.add(cP);
+          console.log("verify >> commitment", commitment);
 
           // Compute the next challenge
           c = hashToScalar(message, publicKeys, commitment);
+          console.log("verify >> c", c);
         } catch (error) {
           console.error(`Error in verification loop at index ${i}:`, error);
           return false;
@@ -413,8 +439,9 @@ export function verify(
 
       // Check if the ring closes correctly: final c should equal c0
       const initialC = hexToBigInt(normalizedC0);
-
+      console.log("verify >> Initial C", initialC);
       if (c === initialC) {
+        console.log("verify >> Verification successful");
         return true;
       } else {
         console.error("Verification failed: ring did not close correctly");
