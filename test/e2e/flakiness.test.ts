@@ -37,4 +37,6 @@ function runFlakinessTest(iterations: number) {
   const isValid = verify(signature, message, ring);
 
   console.log(`Iteration ${iterations} - ${isValid ? "Valid" : "Invalid"}`);
+
+  expect(isValid).toBe(true);
 }
