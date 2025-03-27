@@ -1,19 +1,22 @@
 {
   "name": "nostringer",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Unlinkable ring signatures for Nostr-compatible secp256k1 keys",
-  "main": "dist/src/index.js",
-  "module": "dist/src/index.js",
-  "types": "dist/src/index.d.ts",
-  "type": "module",
+  "main": "./dist/cjs/src/index.cjs",
+  "module": "./dist/esm/src/index.js",
+  "types": "./dist/esm/src/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/src/index.js",
-      "types": "./dist/src/index.d.ts"
+      "require": "./dist/cjs/src/index.cjs",
+      "import": "./dist/esm/src/index.js",
+      "types": "./dist/esm/src/index.d.ts"
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs && npm run fix:build",
+    "fix:build": "node ./scripts/fix-build.js",
     "prepublishOnly": "npm run build",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",

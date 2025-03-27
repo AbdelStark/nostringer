@@ -14,4 +14,5 @@ export default {
     ],
   },
   transformIgnorePatterns: ["node_modules/(?!(@noble|nostr-tools)/)"],
+  testPathIgnorePatterns: ["/node_modules/", "/dist/"],
 };
