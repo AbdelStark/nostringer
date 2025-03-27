@@ -43,10 +43,6 @@ describe("Nostringer Integration Tests", () => {
     // Create signature
     const signature = sign(message, keyPair1.privateKeyHex, ring);
 
-    // Log signature for debugging
-    console.log("Signature:", signature);
-    console.log("Ring:", ring);
-
     // Verify signature
     const isValid = verify(signature, message, ring);
     expect(isValid).toBe(true);

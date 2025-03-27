@@ -10,26 +10,15 @@ describe("Basic Nostr Key Integration", () => {
     // Generate two Nostr keypairs using our helper
     const keyPairs = NostrTools.generateKeyPairs(2);
 
-    // Log key information
-    console.log("Nostr key pair 1:", keyPairs[0]);
-    console.log("Nostr key pair 2:", keyPairs[1]);
-
     // Create a simple ring with just the public keys
     const ring = NostrTools.getPublicKeys(keyPairs);
     const message = "Test message";
 
     // Sign with the first private key
     const signature = sign(message, keyPairs[0].privateKeyHex, ring);
-    console.log("Signature:", signature);
 
-    // Skip actual verification as it's non-deterministic in testing
-    // const isValid = verify(signature, message, ring);
-    // expect(isValid).toBe(true);
-
-    // Check signature structure
-    expect(signature).toHaveProperty("c0");
-    expect(Array.isArray(signature.s)).toBe(true);
-    expect(signature.s.length).toBe(ring.length);
+    const isValid = verify(signature, message, ring);
+    expect(isValid).toBe(true);
 
     // Tampered message should fail verification
     const tamperedMessage = "Tampered message";

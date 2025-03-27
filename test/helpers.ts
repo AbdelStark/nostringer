@@ -73,6 +73,7 @@ export const NostrTools = {
     // Get the public key using our library's method instead of nostr-tools
     // This ensures the public key format is compatible with our ring signature implementation
     const pubKey = ProjectivePoint.fromPrivateKey(privKey);
+
     const publicKeyHex = pubKey.x.toString(16).padStart(64, "0");
 
     return { privateKeyHex, publicKeyHex };
@@ -96,3 +97,7 @@ export const NostrTools = {
     return keyPairs.map((kp) => kp.publicKeyHex);
   },
 };
+
+export function isEvenBitwise(bigIntNumber: bigint) {
+  return (bigIntNumber & 1n) === 0n;
+}
