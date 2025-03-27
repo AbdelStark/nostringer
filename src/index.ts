@@ -27,7 +27,7 @@ const G = ProjectivePoint.BASE;
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Sign a message using an LSAG ring signature approach:
+ * Sign a message using a SAG ring signature approach:
  *  - `message`: the data being signed
  *  - `privateKeyHex`: 64-hex (32 bytes)
  *  - `ringPubKeysHex`: each can be x-only (64-hex), compressed (66-hex), or uncompressed (130-hex).
@@ -39,14 +39,14 @@ export function sign(
   privateKeyHex: string,
   ringPubKeysHex: string[],
 ): RingSignature {
-  // 1) Parse ring pubkeys => points
+  // Parse ring pubkeys => points
   const ringPoints = ringPubKeysHex.map(hexToPoint);
   const ringSize = ringPoints.length;
   if (ringSize < 2) {
     throw new Error("Ring must have >= 2 members");
   }
 
-  // 2) Convert private key => normal point, then see if ring includes it
+  // Convert private key => normal point, then see if ring includes it
   const privNorm = normalizeHex(privateKeyHex);
   if (privNorm.length !== 64) {
     throw new Error(
@@ -58,7 +58,7 @@ export function sign(
   const dBytes = hexToBytes(privNorm);
   let myPoint = ProjectivePoint.fromPrivateKey(dBytes);
 
-  // 3) Find signer's index by comparing the ring's points
+  // Find signer's index by comparing the ring's points
   //    If the ring does NOT contain `myPoint`, we try flipping (N - d) => even-Y version
   let signerIndex = ringPoints.findIndex((p) => pointsEqual(p, myPoint));
   if (signerIndex < 0) {
@@ -76,7 +76,7 @@ export function sign(
     myPoint = flippedPoint;
   }
 
-  // 4) ring signature flow
+  // ring signature flow
   const R: bigint[] = new Array(ringSize);
   const C: bigint[] = new Array(ringSize);
 
@@ -115,7 +115,7 @@ export function sign(
 }
 
 /**
- * Verify an LSAG ring signature:
+ * Verify a SAG ring signature:
  *  - `signature` = { c0, s[] }, each 64‑hex
  *  - `message`
  *  - `ringPubKeysHex`: array of x-only, compressed, or uncompressed pubkeys
