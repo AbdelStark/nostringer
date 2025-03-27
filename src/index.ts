@@ -3,122 +3,162 @@ import * as secp from "@noble/secp256k1";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils";
 
-/**
- * A ring signature output: initial challenge + array of response scalars.
- */
-export interface RingSignature {
-  c0: string;
-  s: string[]; // each response is a 64-hex string
-}
+////////////////////////////////////////////////////////////////////////////////
+// TYPES & CONSTANTS
+////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Generate a new random key pair.
- * - Private key is returned in 64‑hex (32 bytes).
- * - Public key is returned as 66‑hex compressed (33 bytes).
+ * A ring signature consists of an initial challenge `c0`
+ * plus a list of response scalars `s[]`.
  */
-export function generateKeyPair(): {
+export interface RingSignature {
+  c0: string; // 64‑hex
+  s: string[]; // array of 64‑hex
+}
+
+/** Supported formats for generating a new public key. */
+export type KeyFormat = "compressed" | "uncompressed" | "xonly";
+
+const N = secp.CURVE.n; // Group order
+const G = ProjectivePoint.BASE;
+
+////////////////////////////////////////////////////////////////////////////////
+// KEY GENERATION
+////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Generate a new random secp256k1 key pair in the requested format:
+ *   - `"compressed"`   => 66‑hex public key (33 bytes, starts with 02/03)
+ *   - `"uncompressed"` => 130‑hex public key (65 bytes, starts with 04)
+ *   - `"xonly"`        => 64‑hex representing just the X coordinate (assuming even Y)
+ *
+ * Returns an object { privateKeyHex, publicKeyHex }.
+ */
+export function generateKeyPair(format: KeyFormat = "compressed"): {
   privateKeyHex: string;
   publicKeyHex: string;
 } {
-  // 1) Generate random 32‑byte secret
-  const privBytes = secp.utils.randomPrivateKey(); // typed array
-  const privHex = bytesToHex(privBytes);
+  // 1) Random 32-byte secret
+  const privBytes = secp.utils.randomPrivateKey(); // Uint8Array(32)
+  const privHex = bytesToHex(privBytes); // 64 hex
 
-  // 2) Convert to compressed public key (33 bytes, prefix 02 or 03)
-  const pubPoint = ProjectivePoint.fromPrivateKey(privBytes);
-  // `.toRawBytes(true)` => compressed
-  const pubBytes = pubPoint.toRawBytes(true);
-  const pubHex = bytesToHex(pubBytes); // 66 hex chars
+  // 2) Convert secret -> full ProjectivePoint
+  let point = ProjectivePoint.fromPrivateKey(privBytes);
 
-  return {
-    privateKeyHex: privHex,
-    publicKeyHex: pubHex,
-  };
+  // 3) Format the pubkey accordingly
+  let pubHex: string;
+
+  switch (format) {
+    case "xonly":
+      // For x-only, we enforce "even Y" so it matches BIP340 convention
+      // If Y is odd, flip the scalar => yields the negated point with even Y
+      if (point.y % 2n === 1n) {
+        let d = BigInt("0x" + privHex);
+        d = (N - d) % N; // flip
+        const flippedBytes = hexToBytes(d.toString(16).padStart(64, "0"));
+        point = ProjectivePoint.fromPrivateKey(flippedBytes);
+      }
+      // Now Y is guaranteed even => pubKey is 64 hex of X coordinate
+      pubHex = point.x.toString(16).padStart(64, "0");
+      break;
+
+    case "uncompressed":
+      // 65 bytes: 04 + X(32 bytes) + Y(32 bytes) => 130 hex
+      pubHex = bytesToHex(point.toRawBytes(false));
+      break;
+
+    case "compressed":
+    default:
+      // 33 bytes: 02/03 + X(32 bytes)
+      pubHex = bytesToHex(point.toRawBytes(true));
+      break;
+  }
+
+  return { privateKeyHex: privHex, publicKeyHex: pubHex };
 }
 
-// secp256k1 constants
-const N = secp.CURVE.n; // order
-const G = ProjectivePoint.BASE;
+////////////////////////////////////////////////////////////////////////////////
+// HELPER FUNCTIONS
+////////////////////////////////////////////////////////////////////////////////
 
-/**
- * Modular operation within [0, N-1].
- */
+/** Basic mod to ensure result is in [0, N-1]. */
 function mod(a: bigint, m: bigint = N): bigint {
   const r = a % m;
   return r >= 0n ? r : r + m;
 }
 
-/**
- * Normalize a hex string: remove `0x` prefix, make lowercase, ensure even length.
- * Throws if non-hex or absurdly long.
- */
+/** Normalize a hex string: remove '0x' if present, lowercase, even length. */
 function normalizeHex(hex: string): string {
-  if (typeof hex !== "string") {
-    throw new Error("Not a string");
-  }
+  if (typeof hex !== "string") throw new Error("Not a string");
   if (hex.startsWith("0x") || hex.startsWith("0X")) {
     hex = hex.slice(2);
   }
   hex = hex.toLowerCase();
   if (!/^[0-9a-f]*$/.test(hex)) {
-    throw new Error(`Non-hex characters found in: ${hex}`);
+    throw new Error(`Non-hex characters found: ${hex}`);
   }
   if (hex.length % 2 === 1) {
-    hex = "0" + hex;
+    hex = "0" + hex; // ensure even length
   }
   if (hex.length > 130) {
-    // longer than an uncompressed 65‑byte key = 130 hex
-    throw new Error(`Hex string length too large: ${hex.length}`);
+    // uncompressed is 130 hex max
+    throw new Error(`Hex string too long: length=${hex.length}`);
   }
   return hex;
 }
 
-/**
- * Convert a hex string to a BigInt mod N.
- */
+/** Convert hex -> BigInt, mod N. */
 function hexToBigInt(h: string): bigint {
   const norm = normalizeHex(h);
-  const val = BigInt("0x" + norm);
-  return val % N;
+  return BigInt("0x" + norm) % N;
 }
 
 /**
- * Parse a secp256k1 public key in standard SEC format:
- * - Compressed (33 bytes): length=66 hex, prefix=02 or 03
- * - Uncompressed (65 bytes): length=130 hex, prefix=04
- *
- * Throws if format is not recognized or point is invalid.
+ * Parse a public key that might be:
+ *   - 64-hex (x-only, assume even-Y => "02 + x")
+ *   - 66-hex compressed ("02"/"03" prefix)
+ *   - 130-hex uncompressed ("04" prefix)
+ * Throws if the format is unrecognized or invalid on-curve.
  */
-function hexToPoint(pubKeyHex: string): ProjectivePoint {
-  const hex = normalizeHex(pubKeyHex);
+function hexToPoint(pubHex: string): ProjectivePoint {
+  const hex = normalizeHex(pubHex);
 
-  if (hex.length === 66 && (hex.startsWith("02") || hex.startsWith("03"))) {
-    // Compressed
-    const point = ProjectivePoint.fromHex(hex);
-    point.assertValidity();
-    return point;
-  } else if (hex.length === 130 && hex.startsWith("04")) {
-    // Uncompressed
-    const point = ProjectivePoint.fromHex(hex);
-    point.assertValidity();
-    return point;
-  } else {
-    throw new Error(
-      `Public key must be 66-hex compressed (02 or 03) or 130-hex uncompressed (04). Got length=${
-        hex.length
-      }, prefix=${hex.slice(0, 2)}`
-    );
+  // x-only?
+  if (hex.length === 64) {
+    // x-only => even Y => "02" + x
+    const candidate = "02" + hex;
+    const p = ProjectivePoint.fromHex(candidate);
+    p.assertValidity();
+    return p;
   }
+
+  // compressed?
+  if (hex.length === 66 && (hex.startsWith("02") || hex.startsWith("03"))) {
+    const p = ProjectivePoint.fromHex(hex);
+    p.assertValidity();
+    return p;
+  }
+
+  // uncompressed?
+  if (hex.length === 130 && hex.startsWith("04")) {
+    const p = ProjectivePoint.fromHex(hex);
+    p.assertValidity();
+    return p;
+  }
+
+  throw new Error(
+    `Invalid pubkey format: length=${hex.length}, prefix=${hex.slice(0, 2)}`,
+  );
 }
 
 /**
- * Convert message + ring pubkeys + ephemeral point into a single buffer,
- * then sha256 => scalar mod N (never zero).
+ * Hash (message || ringPubKeys || ephemeralPoint) => scalar mod N (non-zero).
+ * - ephemeralPoint is always serialized in compressed form for stable hashing.
  */
 function hashToScalar(
   message: string | Uint8Array,
   ringPubKeys: string[],
-  point: ProjectivePoint
+  ephemeralPoint: ProjectivePoint,
 ): bigint {
   let msgBytes: Uint8Array;
   if (typeof message === "string") {
@@ -127,17 +167,18 @@ function hashToScalar(
     msgBytes = message;
   }
 
+  // Combine all
   const buffers: Uint8Array[] = [msgBytes];
 
-  // Include each ring pubkey as raw bytes
+  // Add each ring pubkey in exactly the hex form the user provided
   for (const pk of ringPubKeys) {
-    const pkNorm = normalizeHex(pk);
-    buffers.push(hexToBytes(pkNorm));
+    const norm = normalizeHex(pk);
+    buffers.push(hexToBytes(norm));
   }
 
-  // Add ephemeral point in compressed form
-  const ephemeralBytes = point.toRawBytes(true);
-  buffers.push(ephemeralBytes);
+  // Add ephemeral point in compressed form (33 bytes)
+  const ephemeralCompressed = ephemeralPoint.toRawBytes(true);
+  buffers.push(ephemeralCompressed);
 
   // Concatenate
   const totalLen = buffers.reduce((acc, b) => acc + b.length, 0);
@@ -148,90 +189,85 @@ function hashToScalar(
     offset += b.length;
   }
 
+  // sha256 => mod N
   const h = sha256(combined);
-  const s = BigInt("0x" + bytesToHex(h)) % N;
-  return s === 0n ? 1n : s;
+  const scalar = BigInt("0x" + bytesToHex(h)) % N;
+  return scalar === 0n ? 1n : scalar;
 }
 
-function convertXOnlyToCompressedIfRequired(input: string): string {
-  if (input.length === 66) {
-    return input;
-  }
-  return convertXOnlyToCompressed(input);
+/** Try p.equals(q), or throw if the method doesn't exist. Noble supports equals(). */
+function pointsEqual(a: ProjectivePoint, b: ProjectivePoint): boolean {
+  // Noble-secp256k1's ProjectivePoint has a `.equals()` method
+  return a.equals(b);
 }
 
-function convertXOnlyToCompressed(xOnlyHex: string): string {
-  const isEvenY = isEvenBitwise(BigInt("0x" + xOnlyHex));
-  // Prepend "02" if isEvenY, or "03" if it's odd.
-  // But you'd need to know which Y parity to use for that x.
-  return (isEvenY ? "02" : "03") + xOnlyHex;
-}
-
-function isEvenBitwise(bigIntNumber: bigint) {
-  return (bigIntNumber & 1n) === 0n;
-}
+////////////////////////////////////////////////////////////////////////////////
+// RING SIGNATURE
+////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Sign a message with an LSAG ring signature:
- * - `message`: the message (string or bytes)
- * - `privateKeyHex`: 64-hex (32 bytes)
- * - `ringPubKeysHex`: each a standard SEC key:
- *     - 66-hex compressed (starts '02' or '03') or
- *     - 130-hex uncompressed (starts '04')
+ * Sign a message using an LSAG ring signature approach:
+ *  - `message`: the data being signed
+ *  - `privateKeyHex`: 64-hex (32 bytes)
+ *  - `ringPubKeysHex`: each can be x-only (64-hex), compressed (66-hex), or uncompressed (130-hex).
  *
- * Returns { c0, s[] } with each field 64-hex.
+ * Returns { c0, s[] } with each scalar in 64‑hex.
  */
 export function sign(
   message: string | Uint8Array,
   privateKeyHex: string,
-  ringPubKeysHex: string[]
+  ringPubKeysHex: string[],
 ): RingSignature {
-  // Basic checks
-  const privHexNorm = normalizeHex(privateKeyHex);
-
-  // Convert private key to compressed if needed
-  if (privHexNorm.length !== 64) {
-    throw new Error(
-      `Private key must be 32-byte hex => 64 chars. Got length=${privHexNorm.length}`
-    );
-  }
-
-  // Convert ring pubkeys to points
+  // 1) Parse ring pubkeys => points
   const ringPoints = ringPubKeysHex.map(hexToPoint);
   const ringSize = ringPoints.length;
   if (ringSize < 2) {
-    throw new Error("Ring must have at least 2 members");
+    throw new Error("Ring must have >= 2 members");
   }
 
-  // Convert privKey => BigInt
-  const x = BigInt("0x" + privHexNorm);
+  // 2) Convert private key => normal point, then see if ring includes it
+  const privNorm = normalizeHex(privateKeyHex);
+  if (privNorm.length !== 64) {
+    throw new Error(
+      `Private key must be 64-hex (32 bytes). Got length=${privNorm.length}`,
+    );
+  }
+  // The "unflipped" point from privateKey
+  const d = BigInt("0x" + privNorm);
+  const dBytes = hexToBytes(privNorm);
+  let myPoint = ProjectivePoint.fromPrivateKey(dBytes);
 
-  // Derive the actual public key from x (to see which ring index is ours)
-  const myPoint = ProjectivePoint.fromPrivateKey(hexToBytes(privHexNorm));
-  myPoint.assertValidity();
-  const myPubCompressed = bytesToHex(myPoint.toRawBytes(true)).toLowerCase();
-
-  // Find our index in the ring
-  const signerIndex = ringPubKeysHex.findIndex(
-    (pk) => normalizeHex(pk) === myPubCompressed
-  );
+  // 3) Find signer's index by comparing the ring's points
+  //    If the ring does NOT contain `myPoint`, we try flipping (N - d) => even-Y version
+  let signerIndex = ringPoints.findIndex((p) => pointsEqual(p, myPoint));
   if (signerIndex < 0) {
-    throw new Error("Ring does not contain this private key’s public key");
+    // try flipping
+    const flipped = mod(-d, N);
+    const flippedBytes = hexToBytes(flipped.toString(16).padStart(64, "0"));
+    const flippedPoint = ProjectivePoint.fromPrivateKey(flippedBytes);
+    signerIndex = ringPoints.findIndex((p) => pointsEqual(p, flippedPoint));
+    if (signerIndex < 0) {
+      throw new Error(
+        "Ring does not include the signer's public key (neither normal nor flipped).",
+      );
+    }
+    // If flipping is needed, adopt that privateKey for the math
+    myPoint = flippedPoint;
   }
 
-  // Arrays for responses & challenges
+  // 4) ring signature flow
   const R: bigint[] = new Array(ringSize);
   const C: bigint[] = new Array(ringSize);
 
-  // Pick random alpha => alphaG
+  // ephemeral alpha
   const alpha = randomScalar();
   const alphaG = G.multiply(alpha);
 
-  // c_(start) = hashToScalar( message, ringPubKeysHex, alphaG )
+  // first challenge c_start
   const startIndex = (signerIndex + 1) % ringSize;
   C[startIndex] = hashToScalar(message, ringPubKeysHex, alphaG);
 
-  // Fill random responses for others
+  // fill random responses for i != signer
   let i = startIndex;
   while (i !== signerIndex) {
     R[i] = randomScalar();
@@ -241,54 +277,58 @@ export function sign(
     i = nextIndex;
   }
 
-  // Now compute R[signer] = alpha - C[signer]*x mod N
-  R[signerIndex] = mod(alpha - C[signerIndex] * x, N);
+  // final response: R[signer] = alpha - c[signer]*privKey mod N
+  const cSigner = C[signerIndex];
+  // figure out which privateKey scalar was actually used
+  let usedD = d;
+  if (!pointsEqual(myPoint, ProjectivePoint.fromPrivateKey(dBytes))) {
+    // means we used the flipped scalar
+    usedD = mod(-d, N);
+  }
+  R[signerIndex] = mod(alpha - cSigner * usedD, N);
 
-  // Format as hex
   return {
     c0: C[0].toString(16).padStart(64, "0"),
-    s: R.map((r) => r.toString(16).padStart(64, "0")),
+    s: R.map((ri) => ri.toString(16).padStart(64, "0")),
   };
 }
 
 /**
  * Verify an LSAG ring signature:
- * - `signature`: { c0, s[] } with 64-hex strings
- * - `message`: message (string or bytes)
- * - `ringPubKeysHex`: each standard SEC key (66 or 130 hex)
- *
- * Returns true or false.
+ *  - `signature` = { c0, s[] }, each 64‑hex
+ *  - `message`
+ *  - `ringPubKeysHex`: array of x-only, compressed, or uncompressed pubkeys
  */
 export function verify(
   signature: RingSignature,
   message: string | Uint8Array,
-  ringPubKeysHex: string[]
+  ringPubKeysHex: string[],
 ): boolean {
   try {
-    // Basic shape checks
     const { c0, s } = signature;
     if (!c0 || !s || s.length !== ringPubKeysHex.length) {
       return false;
     }
     const ringSize = ringPubKeysHex.length;
-    if (ringSize < 1) {
-      return false;
-    }
+    if (ringSize < 1) return false;
 
-    // Convert c0, s[] => BigInt
-    let c = hexToBigInt(c0);
-    const R = s.map(hexToBigInt);
-
-    // Convert ring pubkeys => points
+    // parse ring => points
     const ringPoints = ringPubKeysHex.map(hexToPoint);
 
-    // Recompute c in a loop
+    // c0 => bigInt
+    let c = hexToBigInt(c0);
+    // responses => bigInt
+    const R = s.map(hexToBigInt);
+
+    // iterate
     for (let i = 0; i < ringSize; i++) {
+      // X_i = R[i]*G + c_i * P[i]
       const Xi = G.multiply(R[i]).add(ringPoints[i].multiply(c));
+      // c_(i+1) = hashToScalar(...)
       c = hashToScalar(message, ringPubKeysHex, Xi);
     }
 
-    // Check final c == c0
+    // must equal initial c0
     const c0Val = hexToBigInt(c0);
     return c === c0Val;
   } catch (err) {
@@ -297,14 +337,15 @@ export function verify(
   }
 }
 
-/**
- * Generate a random scalar in [1, n-1].
- */
+////////////////////////////////////////////////////////////////////////////////
+// INTERNAL UTILS
+////////////////////////////////////////////////////////////////////////////////
+
+/** Return a random scalar in [1, n-1]. */
 function randomScalar(): bigint {
-  let scalar: bigint;
-  do {
-    const priv = secp.utils.randomPrivateKey(); // 32 random bytes
-    scalar = BigInt("0x" + bytesToHex(priv));
-  } while (scalar === 0n || scalar >= N);
-  return scalar;
+  while (true) {
+    const raw = secp.utils.randomPrivateKey();
+    const x = BigInt("0x" + bytesToHex(raw));
+    if (x !== 0n && x < N) return x;
+  }
 }
