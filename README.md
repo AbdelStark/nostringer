@@ -10,6 +10,19 @@
 # Nostringer
 
 <div align="center">
+  <h3>
+    <a href="https://nostringer.starknetonbitcoin.com/">
+      LIVE DEMO
+    </a>
+    <span> | </span>
+    <a href="https://github.com/AbdelStark/nostringer-app">
+      WEBAPP REPO
+    </a>
+    <span> | </span>
+    <a href="https://github.com/AbdelStark/nostringer-example">
+      INTEGRATION SAMPLE
+    </a>
+  </h3>
   <img src="./assets/img/nostringer.png" alt="Nostringer" width="300">
 </div>
 
@@ -26,6 +39,8 @@ Nostringer is largely inspired by [Monero's Ring Signatures](https://www.getmone
   - [Key Features](#key-features)
   - [Installation](#installation)
   - [Module Formats](#module-formats)
+    - [ESM (Modern JavaScript)](#esm-modern-javascript)
+    - [CommonJS (Node.js)](#commonjs-nodejs)
   - [Usage](#usage)
   - [API Reference](#api-reference)
     - [`sign(message: string | Uint8Array, privateKeyHex: string, publicKeysHex: string[]): RingSignature`](#signmessage-string--uint8array-privatekeyhex-string-publickeyshex-string-ringsignature)
