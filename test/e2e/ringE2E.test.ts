@@ -112,9 +112,7 @@ describe("E2E: Nostringer ring signatures", () => {
 
     // Verify correct signatures
     expect(verify(sigA, messageA, ringA)).toBe(true);
-    // TODO: Investigate why this is failing
-    // Commented out for now to remove hardcoded condition in verify function
-    //expect(verify(sigB, messageB, ringB)).toBe(true);
+    expect(verify(sigB, messageB, ringB)).toBe(true);
     expect(verify(sigC, messageC, ringC)).toBe(true);
 
     // Verify incorrect combinations

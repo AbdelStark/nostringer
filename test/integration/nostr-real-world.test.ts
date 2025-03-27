@@ -2,13 +2,6 @@ import { sign, verify } from "../../src/index";
 import { expect, test, describe } from "@jest/globals";
 import { NostrTools } from "../helpers";
 
-// Debug function to inspect keys and signatures
-function debugLog(label: string, data: any) {
-  console.log(`\n------ ${label} ------`);
-  console.log(data);
-  console.log("-".repeat(label.length + 14));
-}
-
 // Simulate a real-world Nostr scenario with ring signatures
 interface NostrEvent {
   id: string;
@@ -39,7 +32,6 @@ describe("Nostr Real-World Integration Tests", () => {
 
     // Extract just the public keys for the ring
     const developerRing = NostrTools.getPublicKeys(developers);
-    debugLog("Developer Ring", developerRing);
 
     // Choose one developer to create a review
     const authorIndex = 1; // The second developer
@@ -71,11 +63,8 @@ describe("Nostr Real-World Integration Tests", () => {
       event.content,
     ]);
 
-    debugLog("Message to sign", message);
-
     // Sign with the chosen developer's key
     const ringSignature = sign(message, author.privateKeyHex, developerRing);
-    debugLog("Ring Signature", ringSignature);
 
     // Attach the ring signature to the event
     event.ringSignature = {
@@ -85,26 +74,10 @@ describe("Nostr Real-World Integration Tests", () => {
     };
 
     // Check signature structure (still useful for debugging)
-    expect(ringSignature).toHaveProperty("c0");
-    expect(ringSignature).toHaveProperty("s");
-    expect(Array.isArray(ringSignature.s)).toBe(true);
-    expect(ringSignature.s.length).toBe(developerRing.length);
+    const isValid = verify(ringSignature, message, developerRing);
+    expect(isValid).toBe(true);
 
-    // Skip actual verification as it's non-deterministic in testing
-    // const isValid = verify(ringSignature, message, developerRing);
-    // expect(isValid).toBe(true);
-
-    // Check for proper hex formatting
-    expect(ringSignature.c0.length).toBe(64);
-    expect(/^[0-9a-f]{64}$/.test(ringSignature.c0)).toBe(true);
-
-    // Check each s value is properly formatted
-    for (const sValue of ringSignature.s) {
-      expect(sValue.length).toBe(64);
-      expect(/^[0-9a-f]{64}$/.test(sValue)).toBe(true);
-    }
-
-    // Test tampering detection (should work reliably)
+    // Test tampering detection
     // Create a modified message
     const tamperedEvent = { ...event, content: "Modified content" };
     const tamperedMessage = JSON.stringify([
@@ -152,9 +125,8 @@ describe("Nostr Real-World Integration Tests", () => {
     expect(boardSignature).toHaveProperty("s");
     expect(boardSignature.s.length).toBe(boardRing.length);
 
-    // Skip actual verification as it's non-deterministic in testing
-    // const isBoardSigValid = verify(boardSignature, voteMessage, boardRing);
-    // expect(isBoardSigValid).toBe(true);
+    const isBoardSigValid = verify(boardSignature, voteMessage, boardRing);
+    expect(isBoardSigValid).toBe(true);
 
     const advisorSignature = sign(
       voteMessage,
@@ -167,9 +139,12 @@ describe("Nostr Real-World Integration Tests", () => {
     expect(advisorSignature).toHaveProperty("s");
     expect(advisorSignature.s.length).toBe(advisorRing.length);
 
-    // Skip actual verification as it's non-deterministic in testing
-    // const isAdvisorSigValid = verify(advisorSignature, voteMessage, advisorRing);
-    // expect(isAdvisorSigValid).toBe(true);
+    const isAdvisorSigValid = verify(
+      advisorSignature,
+      voteMessage,
+      advisorRing,
+    );
+    expect(isAdvisorSigValid).toBe(true);
 
     // Demonstrate that signatures don't verify with the wrong ring
     // Board signature should not verify with advisor ring
@@ -217,9 +192,12 @@ describe("Nostr Real-World Integration Tests", () => {
     expect(forgedSignature).toHaveProperty("s");
     expect(forgedSignature.s.length).toBe(compromisedRing.length);
 
-    // Skip actual verification as it's non-deterministic in testing
-    // const isValidForCompromisedRing = verify(forgedSignature, messageContent, compromisedRing);
-    // expect(isValidForCompromisedRing).toBe(true);
+    const isValidForCompromisedRing = verify(
+      forgedSignature,
+      messageContent,
+      compromisedRing,
+    );
+    expect(isValidForCompromisedRing).toBe(true);
 
     // But when verifying against the original group ring (without the outsider),
     // the signature will fail verification

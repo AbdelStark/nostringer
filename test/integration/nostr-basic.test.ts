@@ -22,14 +22,8 @@ describe("Basic Nostr Key Integration", () => {
     const signature = sign(message, keyPairs[0].privateKeyHex, ring);
     console.log("Signature:", signature);
 
-    // Skip actual verification as it's non-deterministic in testing
-    // const isValid = verify(signature, message, ring);
-    // expect(isValid).toBe(true);
-
-    // Check signature structure
-    expect(signature).toHaveProperty("c0");
-    expect(Array.isArray(signature.s)).toBe(true);
-    expect(signature.s.length).toBe(ring.length);
+    const isValid = verify(signature, message, ring);
+    expect(isValid).toBe(true);
 
     // Tampered message should fail verification
     const tamperedMessage = "Tampered message";

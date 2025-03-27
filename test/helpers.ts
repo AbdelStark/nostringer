@@ -66,23 +66,6 @@ export const NostrTools = {
    * Generate a nostr key pair using nostr-tools and return it in a format compatible with our library
    * @returns A KeyPair object with private and public keys in hex format
    */
-  generateKeyPair2(): KeyPair {
-    const privKey = nostrGenerateSecretKey();
-    const privateKeyHex = bytesToHex(privKey);
-
-    // Get the public key using our library's method instead of nostr-tools
-    // This ensures the public key format is compatible with our ring signature implementation
-    const pubKey = ProjectivePoint.fromPrivateKey(privKey);
-    let publicKeyHex = "";
-    if (isEvenBitwise(pubKey.y)) {
-      publicKeyHex = "02" + pubKey.x.toString(16).padStart(64, "0");
-    } else {
-      publicKeyHex = "03" + pubKey.x.toString(16).padStart(64, "0");
-    }
-
-    return { privateKeyHex, publicKeyHex };
-  },
-
   generateKeyPair(): KeyPair {
     const privKey = nostrGenerateSecretKey();
     const privateKeyHex = bytesToHex(privKey);
